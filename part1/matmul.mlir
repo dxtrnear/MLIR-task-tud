@@ -10,7 +10,7 @@
 
 func.func @matmul_generic(%A: memref<?x?xf64>, %B: memref<?x?xf64>, %C: memref<?x?xf64>) {
   linalg.generic {indexing_maps = [#map_A, #map_B, #map_C], 
-                  iterator_types = ["parallel", "parallel", "reduction"]} //?? 
+                  iterator_types = ["parallel", "parallel", "reduction"]} //["parallel", "parallel", "parallel"]
       ins(%A, %B : memref<?x?xf64>, memref<?x?xf64>)
       outs(%C : memref<?x?xf64>) {
   ^bb0(%a: f64, %b: f64, %c: f64):

@@ -1,8 +1,10 @@
 LLVM_PREFIX ?= $(abspath $(CURDIR)/../llvm-install)
 MLIR_OPT    := $(LLVM_PREFIX)/bin/mlir-opt
 OUT         := part1/IRs/generated
+MLIR_TRANSLATE := $(LLVM_PREFIX)/bin/mlir-translate
+LLC := $(LLVM_PREFIX)/bin/llc
 
-.PHONY: task2 task3
+.PHONY: task2 task3 task4 task5
 
 task2:
 	mkdir -p $(OUT)
@@ -12,3 +14,21 @@ task3:
 	mkdir -p $(OUT)
 	$(MLIR_OPT) part1/matmul.mlir --convert-linalg-to-loops -o $(OUT)/task3_scf.mlir
 	$(MLIR_OPT) part1/matmul.mlir --convert-linalg-to-affine-loops -o $(OUT)/task3_affine.mlir
+
+task4:
+	mkdir -p $(OUT)
+	$(MLIR_OPT) part1/matmul_interchange.mlir --transform-interpreter --test-transform-dialect-erase-schedule --convert-linalg-to-loops -o $(OUT)/task4_interchanged_scf.mlir
+
+task5: task3 task4
+	mkdir -p $(OUT)
+	$(MLIR_OPT) $(OUT)/task3_scf.mlir --llvm-request-c-wrappers --convert-scf-to-cf  --convert-cf-to-llvm --convert-arith-to-llvm --finalize-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts -o $(OUT)/task5_llvm.mlir
+	$(MLIR_TRANSLATE) $(OUT)/task5_llvm.mlir -mlir-to-llvmir -o $(OUT)/task5.ll
+	$(LLC) -filetype=obj $(OUT)/task5.ll -o $(OUT)/task5.o
+
+	$(MLIR_OPT) $(OUT)/task4_interchanged_scf.mlir  --llvm-request-c-wrappers --convert-scf-to-cf  --convert-cf-to-llvm --convert-arith-to-llvm --finalize-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts -o $(OUT)/task5_llvm_interchanged.mlir
+	$(MLIR_TRANSLATE) $(OUT)/task5_llvm_interchanged.mlir -mlir-to-llvmir -o $(OUT)/task5_interchanged.ll
+	$(LLC) -filetype=obj $(OUT)/task5_interchanged.ll -o $(OUT)/task5_interchanged.o
+
+	$(CC) -ffp-contract=off part1/driver.c $(OUT)/task5.o $(OUT)/task5_interchanged.o -o $(OUT)/matmul_test
+
+..

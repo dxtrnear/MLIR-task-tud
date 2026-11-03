@@ -8,4 +8,8 @@ cmake-build-debug/
 cmake-build-release/
 
 compile_commands.json
+
 .DS_Store
+
+*.o
+part1/IRs/generated/matmul_test
