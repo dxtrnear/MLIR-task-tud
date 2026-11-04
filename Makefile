@@ -4,6 +4,12 @@ OUT         := part1/IRs/generated
 MLIR_TRANSLATE := $(LLVM_PREFIX)/bin/mlir-translate
 LLC := $(LLVM_PREFIX)/bin/llc
 
+
+LLVM_BUILD     ?= $(abspath $(CURDIR)/../llvm-build)
+BUILD          := $(CURDIR)/build
+STANDALONE_OPT := $(BUILD)/bin/standalone-opt
+OUT2           := part2/IRs/generated
+
 .PHONY: task2 task3 task4 task5
 
 task2:
@@ -31,4 +37,10 @@ task5: task3 task4
 
 	$(CC) -ffp-contract=off part1/driver.c $(OUT)/task5.o $(OUT)/task5_interchanged.o -o $(OUT)/matmul_test
 
-..
+$(BUILD)/build.ninja:
+	cmake -G Ninja -S . -B $(BUILD) -DMLIR_DIR=$(LLVM_PREFIX)/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=$(LLVM_BUILD)/bin/llvm-lit
+
+part2_task1: $(BUILD)/build.ninja
+	ninja -C $(BUILD) check-standalone-opt
+	mkdir -p $(OUT2)
+	$(STANDALONE_OPT) part2/stencil.mlir -o $(OUT2)/task1_part2.mlir 

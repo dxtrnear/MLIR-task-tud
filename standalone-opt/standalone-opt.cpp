@@ -21,6 +21,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
+#include "mlir/Dialect/SCF/IR/SCF.h" // build fails if not declared here even tho it is included in StandaloneDialect.h ?
 #include "Standalone/StandaloneDialect.h"
 #include "Standalone/StandaloneOpsDialect.cpp.inc"
 
@@ -32,6 +33,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::standalone::StandaloneDialect>();
   registry.insert<mlir::func::FuncDialect>();
   registry.insert<mlir::arith::ArithDialect>();
+  registry.insert<mlir::scf::SCFDialect>();
   // Add the following to include *all* MLIR Core dialects, or selectively
   // include what you need like above. You only need to register dialects that
   // will be *parsed* by the tool, not generated.
