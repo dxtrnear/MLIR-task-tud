@@ -20,7 +20,7 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
-
+#include "Standalone/StencilPasses.h" // include the header for the stencil passes
 #include "mlir/Dialect/SCF/IR/SCF.h" // build fails if not declared here even tho it is included in StandaloneDialect.h ?
 #include "Standalone/StandaloneDialect.h"
 #include "Standalone/StandaloneOpsDialect.cpp.inc"
@@ -28,7 +28,7 @@
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
   // TODO: Register standalone passes here.
-
+  mlir::standalone::registerStencilPasses();
   mlir::DialectRegistry registry;
   registry.insert<mlir::standalone::StandaloneDialect>();
   registry.insert<mlir::func::FuncDialect>();

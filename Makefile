@@ -10,7 +10,7 @@ BUILD          := $(CURDIR)/build
 STANDALONE_OPT := $(BUILD)/bin/standalone-opt
 OUT2           := part2/IRs/generated
 
-.PHONY: task2 task3 task4 task5
+.PHONY: task2 task3 task4 task5 part2_task1 part2_task2 pzart2_task3
 
 task2:
 	mkdir -p $(OUT)
@@ -44,3 +44,13 @@ part2_task1: $(BUILD)/build.ninja
 	ninja -C $(BUILD) check-standalone-opt
 	mkdir -p $(OUT2)
 	$(STANDALONE_OPT) part2/stencil.mlir -o $(OUT2)/task1_part2.mlir 
+
+part2_task2: $(BUILD)/build.ninja
+	ninja -C $(BUILD) check-standalone-opt
+	mkdir -p $(OUT2)
+	$(STANDALONE_OPT) part2/stencil.mlir --stencil-apply-to-linalg -o $(OUT2)/task2_linalg.mlir
+
+part2_task3: $(BUILD)/build.ninja
+	ninja -C $(BUILD) check-standalone-opt
+	mkdir -p $(OUT2)
+	$(STANDALONE_OPT) part2/stencil.mlir --stencil-sweep-to-scf -o $(OUT2)/task3_scf.mlir

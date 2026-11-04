@@ -83,6 +83,47 @@ naming constraints:
 grep -n "MemRefRankOf\|class Arg" /Volumes/mlirwork/llvm-install/include/mlir/IR/CommonTypeConstraints.td /Volumes/mlirwork/llvm-install/include/mlir/IR/Constraints.td
 grep -n "TypedArrayAttrBase\|def I64ArrayAttr\|def F64Attr" /Volumes/mlirwork/llvm-install/include/mlir/IR/CommonAttrConstraints.td
 
+for the handwritten version :
+macbookair@Big-Yass-Macbook MLIR-task-tud % mlir-opt part2/task2_target.mlir --convert-linalg-to-loops
+module {
+  func.func @apply_by_hand(%arg0: memref<?x?xf64>, %arg1: memref<?x?xf64>) {
+    %cst = arith.constant 2.000000e-01 : f64
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %dim = memref.dim %arg1, %c0 : memref<?x?xf64>
+    %dim_0 = memref.dim %arg1, %c1 : memref<?x?xf64>
+    %0 = arith.subi %dim, %c2 : index
+    %1 = arith.subi %dim_0, %c2 : index
+    %subview = memref.subview %arg0[1, 1] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: ?>>
+    %subview_1 = memref.subview %arg0[1, 0] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: ?>>
+    %subview_2 = memref.subview %arg0[1, 2] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: ?>>
+    %subview_3 = memref.subview %arg0[2, 1] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: ?>>
+    %subview_4 = memref.subview %arg0[0, 1] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: 1>>
+    %subview_5 = memref.subview %arg1[1, 1] [%0, %1] [1, 1] : memref<?x?xf64> to memref<?x?xf64, strided<[?, 1], offset: ?>>
+    scf.for %arg2 = %c0 to %0 step %c1 {
+      scf.for %arg3 = %c0 to %1 step %c1 {
+        %2 = memref.load %subview[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: ?>>
+        %3 = memref.load %subview_1[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: ?>>
+        %4 = memref.load %subview_2[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: ?>>
+        %5 = memref.load %subview_3[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: ?>>
+        %6 = memref.load %subview_4[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: 1>>
+        %7 = arith.addf %2, %3 : f64
+        %8 = arith.addf %7, %4 : f64
+        %9 = arith.addf %8, %5 : f64
+        %10 = arith.addf %9, %6 : f64
+        %11 = arith.mulf %10, %cst : f64
+        memref.store %11, %subview_5[%arg2, %arg3] : memref<?x?xf64, strided<[?, 1], offset: ?>>
+      }
+    }
+    return
+  }
+}
+
+T-he bounds are 0 to %0 (= N-2), not 1 to N-1. The loops run over window coordinates.
+-Every load is at [%arg2, %arg3], the same index for all 5. No j-1, no i+1 anywhere. The shifts are hidden in the windows’ offsets: %subview_1 starts one column to the left, so its [i, j] is A’s [1+i, j].
+-There’s no load of %o. Linalg saw that the body never uses the output’s old value, so it doesn’t read it. Only the store remains.
+
 Sources:
 https://www.stephendiehl.com/posts/mlir_linear_algebra/
 https://github.com/AlexandreSinger/mlir-beginner-friendly-tutorial
