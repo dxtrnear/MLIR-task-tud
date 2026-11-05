@@ -142,7 +142,7 @@ struct StencilSweepToScfPass
 
   StringRef getArgument() const final { return "stencil-sweep-to-scf"; }
   StringRef getDescription() const final {
-    return "Lower stencil.sweep to memref.subview + scf.for";
+    return "Lower stencil.sweep to scf.for";
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {

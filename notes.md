@@ -1,3 +1,5 @@
+***Raw working notes kept during the task (unedited); the REPORT has the final answers.***
+
 1) no enough space on the mac, so external ssd: mine is formatted exFAT so doesn't support symbolic links (which llvm build and install rely on), so I create an APFS disk image on the SSD. (single growing file on the exFAT drive) 
 bash:
 hdiutil create -size 40g -type SPARSEBUNDLE -fs APFS -volname mlirwork /Volumes/Transcend/mlir_task/mlirwork.sparsebundle

@@ -475,14 +475,15 @@ The interchanged kernel is about 5× faster with identical arithmetic: the only 
 
 # Part 2 
 ---
- 
+Limitation: the verifier implemented for now only apply few verifications (offsets are a pair of 2, input and output must be different for stencil.apply, the rest to verify (non-empty values, values in [-1;1]..) are not implemented.
+
 ## Q9. Why are parallel iterators valid for stencil.apply? 
 A parallel iterator in linalg.generic asserts that the iterations along that dimension have no dependences between them, so they may run in any order (parallel) and the results stays the same.
 For stencil.apply with parallel iterator:
 1- Reads and writes goes to diffferent buffers, every iteration reads only from A (which is never written): so every read sees the same value whatever the order.
 2- Each output element is written exactly once, so no write-after-write dependence.
 And since there is no dependence carried by loops: both iterators are parallel.
-**precondition**: A and B mus be different buffers.
+**precondition**: A and B must be different buffers.
 
 ## Q10. Why would the parallel Linalg lowering be incorrect for stencil.sweep?
 - the neighbours (i-1, j-1), (i-1, j), (i-1, j+1) and (i, j-1) have already been updated in the current sweep so it must read their new values (read-after-write, a true loop-carried dependence);
@@ -520,7 +521,7 @@ jacobi B : 0 / 1000000 mismatches
 seidel A : 0 / 1000000 mismatches
 ```
 
-**why are they identical** IEEE 754 standard requires  `+`, `*` and `/` to be correctly rounded, so the same operations on the same operands in the same order always give the same bits and ower lowering preserves that (same sum order, same final operations and constants, no FMA contraction..)
+**why are they identical** IEEE 754 standard requires  `+`, `*` and `/` to be correctly rounded, so the same operations on the same operands in the same order always give the same bits and our lowering preserves that (same sum order, same final operations and constants, no FMA contraction..)
 
 **Performance note (observed, 3 runs each, M1, times in s):**
  
@@ -548,7 +549,7 @@ seidel A : 0 / 1000000 mismatches
 | Seidel-2D, / 9.0 vs * (1.0/9.0), N = 1000, T = 100 | **993,513 / 1,000,000 points**, max diff = 5.9·10^-12 |
 
 **Role of fast-math flags.** Because the rewrite changes results, a compiler may only apply it for constants that are not powers of 2 when explicitly allowed (trade-off between precision/accuracy and spedd, since a floating point division has much higher latency than a multiplication): 
--LLVM flag for it is arcp on fdiv, clang sets it with --ffast-math, and mlir fastmath<arcp>, our pipeline sets no flag so divf stays intact.
+-LLVM flag for it is arcp on fdiv, clang sets it with -ffast-math, and mlir fastmath<arcp>, our pipeline sets no flag so divf stays intact.
 
 Exception: for a power of two, 1/c is exact, so both forms give the same single rounding.
 
