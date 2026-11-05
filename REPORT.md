@@ -2,7 +2,7 @@
 
 
 
-## Task 1 — Build LLVM/MLIR and the starter project
+## Task 1 - Build LLVM/MLIR and the starter project
 
 ### 1.1 LLVM/MLIR
 
@@ -43,6 +43,7 @@ cmake -G Ninja -S "$REPO_DIR" -B "$REPO_DIR/build" \
   -DMLIR_DIR="$LLVM_PREFIX/lib/cmake/mlir" \
   -DLLVM_EXTERNAL_LIT="$LLVM_BUILD/bin/llvm-lit"
 ninja -C "$REPO_DIR/build" check-standalone-opt
+```
 Result:
 ```
 -- Precompiled headers enabled.
