@@ -10,7 +10,7 @@ BUILD          := $(CURDIR)/build
 STANDALONE_OPT := $(BUILD)/bin/standalone-opt
 OUT2           := part2/IRs/generated
 
-.PHONY: task2 task3 task4 task5 part2_task1 part2_task2 pzart2_task3
+.PHONY: task2 task3 task4 task5 part2_task1 part2_task2 part2_task3 part2_task4
 
 task2:
 	mkdir -p $(OUT)
@@ -36,6 +36,7 @@ task5: task3 task4
 	$(LLC) -filetype=obj $(OUT)/task5_interchanged.ll -o $(OUT)/task5_interchanged.o
 
 	$(CC) -ffp-contract=off part1/driver.c $(OUT)/task5.o $(OUT)/task5_interchanged.o -o $(OUT)/matmul_test
+	$(OUT)/matmul_test 
 
 $(BUILD)/build.ninja:
 	cmake -G Ninja -S . -B $(BUILD) -DMLIR_DIR=$(LLVM_PREFIX)/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=$(LLVM_BUILD)/bin/llvm-lit
@@ -54,3 +55,13 @@ part2_task3: $(BUILD)/build.ninja
 	ninja -C $(BUILD) check-standalone-opt
 	mkdir -p $(OUT2)
 	$(STANDALONE_OPT) part2/stencil.mlir --stencil-sweep-to-scf -o $(OUT2)/task3_scf.mlir
+
+part2_task4: $(BUILD)/build.ninja
+	ninja -C $(BUILD) check-standalone-opt
+	mkdir -p $(OUT2)
+	$(STANDALONE_OPT) part2/stencil.mlir --stencil-apply-to-linalg --stencil-sweep-to-scf --convert-linalg-to-loops --expand-strided-metadata --lower-affine --llvm-request-c-wrappers --convert-scf-to-cf --convert-cf-to-llvm --convert-arith-to-llvm --finalize-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts -o $(OUT2)/task4_llvm.mlir
+	$(MLIR_TRANSLATE) $(OUT2)/task4_llvm.mlir -mlir-to-llvmir -o $(OUT2)/task4.ll
+	$(LLC) -filetype=obj $(OUT2)/task4.ll -o $(OUT2)/task4.o
+	$(CC) -O2 -ffp-contract=off part2/driver.c $(OUT2)/task4.o -o $(OUT2)/stencil_test 
+	$(OUT2)/stencil_test
+

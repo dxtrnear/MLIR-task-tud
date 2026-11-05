@@ -124,9 +124,13 @@ T-he bounds are 0 to %0 (= N-2), not 1 to N-1. The loops run over window coordin
 -Every load is at [%arg2, %arg3], the same index for all 5. No j-1, no i+1 anywhere. The shifts are hidden in the windows’ offsets: %subview_1 starts one column to the left, so its [i, j] is A’s [1+i, j].
 -There’s no load of %o. Linalg saw that the body never uses the output’s old value, so it doesn’t read it. Only the store remains.
 
+on task3 %arg3 + %c-1 is computed 3 times theres the -cse to delete common subexpression
+
+for task4 we'll need --expand-strided-metadata (previous lowering still contains stride so this lowes it to arith ops)
 Sources:
 https://www.stephendiehl.com/posts/mlir_linear_algebra/
 https://github.com/AlexandreSinger/mlir-beginner-friendly-tutorial
 https://llvm.org/devmtg/2021-02-28/slides/Vinay-MLIR-loopnest.pdf
 llvm-project/mlir/test/Dialect/Linalg/transform-op-interchange.mlir
 https://github.com/llvm/llvm-project/blob/main/mlir/docs/TargetLLVMIR.md
+https://github.com/IITH-Compilers/PolyBench-NN/blob/master/stencils/jacobi-2d/jacobi-2d.c

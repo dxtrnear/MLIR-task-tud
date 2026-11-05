@@ -50,6 +50,7 @@ module {
     }
     return
   }
+  //untouched 
   func.func @kernel_seidel_2d(%arg0: index, %arg1: memref<?x?xf64>) {
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index

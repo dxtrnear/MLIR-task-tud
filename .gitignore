@@ -13,3 +13,4 @@ compile_commands.json
 
 *.o
 part1/IRs/generated/matmul_test
+part2/IRs/generated/stencil_test

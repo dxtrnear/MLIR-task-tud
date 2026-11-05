@@ -334,7 +334,7 @@ transform.structured.interchange only applies to linalg.generic. Interchanging m
 Reordering loops is legal if we respect the dependances, for example if in a case where a(i)(j+1) in i,j we get (i-1,j+1) so we're reading a bad value. In this case A and B are read-only C is read and write with same i,j. so all dependances are between iterations differing only in k (carried by reduction) 
 **Why moving the reduction loop is legal here.** Moving k from innermost to middle does not change the relative order of the iterations that touch the same C[i][j]. Trace for C[0][0] with K = 3:
 
-- (i, j, k): i = 0, j = 0, then k = 0, 1, 2 → C[0][0] receives A[0][0]B[0][0], A[0][1]B[1][0], A[0][2]B[2][0], in that order.
+- (i, j, k): i = 0, j = 0, then k = 0, 1, 2 -> C[0][0] receives A[0][0]B[0][0], A[0][1]B[1][0], A[0][2]B[2][0], in that order.
 - (i, k, j): i = 0; k = 0: j = 0 adds A[0][0]B[0][0] (then other j); k = 1: j = 0 adds A[0][1]B[1][0]; k = 2: j = 0 adds A[0][2]B[2][0].
 
 Same terms, same order
@@ -347,13 +347,13 @@ Same terms, same order
 
 ### Q8. 
 
-Diagram: `pipeline_part1.drawio.png` 
-Notes: numbers from a single.
+![Part 1 lowering pipeline](pipeline_part1.drawio.png)
+Notes: numbers from a single run.
 ```bash
 make task5
 ```
 
-**1. MLIR → `llvm` dialect** (`mlir-opt`, same pass list for both versions):
+**1. MLIR -> `llvm` dialect** (`mlir-opt`, same pass list for both versions):
 
 ```
 --llvm-request-c-wrappers
@@ -455,7 +455,7 @@ Descriptor fields (from [TargetLLVMIR](https://mlir.llvm.org/docs/TargetLLVMIR/)
 
 **Correctness.** Three findings, in the order they occurred:
 
-1. With integer inputs (A[i][k] = i·K + k, …), all results matched the reference. This proves little about accumulation order: on 1000×1000 every partial sum stays an exact integer below 2⁵³ (≈ 9×10¹⁵), so any summation order gives identical bits.
+1. With integer inputs (A[i][k] = i·K + k, …), all results matched the reference. This proves little about accumulation order: on 1000×1000 every partial sum stays an exact integer below 2^53 (≈ 9×10^15), so any summation order gives identical bits.
 2. With non-integer inputs, the original MLIR kernel **differed** from the C reference in the last bits:
    ```
    C1 does not match Cref at (0, 2): 0.610113 != 0.610113
@@ -472,6 +472,85 @@ Descriptor fields (from [TargetLLVMIR](https://mlir.llvm.org/docs/TargetLLVMIR/)
 
 The interchanged kernel is about 5× faster with identical arithmetic: the only difference is the memory access pattern of the innermost loop (B walked down columns vs. rows of B and C streamed contiguously). Since llc runs no vectorization, this speed-up comes from memory behaviour alone
 ---
+
+# Part 2 
+---
+ 
+## Q9. Why are parallel iterators valid for stencil.apply? 
+A parallel iterator in linalg.generic asserts that the iterations along that dimension have no dependences between them, so they may run in any order (parallel) and the results stays the same.
+For stencil.apply with parallel iterator:
+1- Reads and writes goes to diffferent buffers, every iteration reads only from A (which is never written): so every read sees the same value whatever the order.
+2- Each output element is written exactly once, so no write-after-write dependence.
+And since there is no dependence carried by loops: both iterators are parallel.
+**precondition**: A and B mus be different buffers.
+
+## Q10. Why would the parallel Linalg lowering be incorrect for stencil.sweep?
+- the neighbours (i-1, j-1), (i-1, j), (i-1, j+1) and (i, j-1) have already been updated in the current sweep so it must read their new values (read-after-write, a true loop-carried dependence);
+- the neighbours (i, j+1), (i+1, j-1), (i+1, j), (i+1, j+1) have not been updated yet so it must read their old values (write-after-read).
+In distance-vector form, (i, j) depends on iterations at distances (0, 1), (1, -1), (1, 0) and (1, 1). Both loops carry dependences, so neither iterator can be marked parallel.
+The parallel lowering would make the inputs and the output the same buffer, and parallel allows any execution order, so old and new values would be mixed differently from the lexicographic sweep. The result would be wrong, and could even change from run to run.
+
+## Q11. Are the results bit-identical? Explain any differences.
+ 
+**Yes : observed bit-identical.**
+ 
+**How it was checked.** Both kernels are lowered by one `standalone-opt` call:
+ 
+```
+--stencil-apply-to-linalg --stencil-sweep-to-scf --convert-linalg-to-loops
+--expand-strided-metadata --lower-affine --llvm-request-c-wrappers
+--convert-scf-to-cf --convert-cf-to-llvm --convert-arith-to-llvm
+--finalize-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts
+```
+ 
+then mlir-translate --mlir-to-llvmir, llc -filetype=obj, and linked with part2/driver.c (cc -O2 -ffp-contract=off). The driver initialises two identical copies of every grid, runs the MLIR kernel on one copy and the PolyBench/C reference loops (the sheet's code) on the other, and compares every element, boundary included, with `==`.
+
+Two passes are new compared with Part 1, and leaving one of them out leaves non-LLVM ops that mlir-translate rejects (trace bellow):
+ 
+| Pass left out | What survives | mlir-translate error |
+|---|---|---|
+| --expand-strided-metadata | memref.subview (strided layouts) | `Dialect 'memref' not found for custom op 'memref.subview'` |
+| --lower-affine | affine.apply (emitted by expand-strided-metadata for the offset arithmetic) | `Dialect 'affine' not found for custom op 'affine.apply'` |
+ 
+**Result (observed, N = 1000, TSTEPS = 100):**
+ 
+```
+jacobi A : 0 / 1000000 mismatches
+jacobi B : 0 / 1000000 mismatches
+seidel A : 0 / 1000000 mismatches
+```
+
+**why are they identical** IEEE 754 standard requires  `+`, `*` and `/` to be correctly rounded, so the same operations on the same operands in the same order always give the same bits and ower lowering preserves that (same sum order, same final operations and constants, no FMA contraction..)
+
+**Performance note (observed, 3 runs each, M1, times in s):**
+ 
+| MLIR kernels built with | Jacobi MLIR / C | Seidel MLIR / C |
+|---|---|---|
+| llc only (Makefile pipeline) | 0.23 / 0.115 | ≈1.9 / ≈1.45 |
+| opt -O2 then llc | 0.21 / 0.117 | 1.40 / 1.40 |
+| opt -O2 -mtriple=arm64-apple-macosx then llc | 0.112 / 0.116 | 1.40 / 1.40 |
+
+(The default pipeline is slower only because llc is the back end alone, LLVM's middle-end optimisations never runs unless target is known (mlir-translate doesn't emit target triple so uses a generic cost model))
+
+## Q12. Can division by a constant be replaced by multiplication by its reciprocal?
+ 
+**Not in general, without changing the result.**
+ 
+- x / c is computed as an exact quotient: rounded once.
+- x * (1/c) needs 1/c first. Unless c is a power of two, 1/c has no exact binary representation (1/9 = 0.000111000111…), so it is already rounded to a value r. The product x * r is then rounded a second time. Two roundings, starting from a slightly wrong constant, can land on the neighbouring double: the result may differ in the last bit.
+
+**Experiment (part2/q12_experiment.c, cc -O2 -ffp-contract=off):**
+ 
+| Test | Mismatches |
+|---|---|
+| i / 9.0 vs i * (1.0/9.0), integers i in [0, 10^6) | **357,060 / 1,000,000 (35.7 %)** |
+| i / 8.0 vs i * (1.0/8.0), same values | **0** |
+| Seidel-2D, / 9.0 vs * (1.0/9.0), N = 1000, T = 100 | **993,513 / 1,000,000 points**, max diff = 5.9·10^-12 |
+
+**Role of fast-math flags.** Because the rewrite changes results, a compiler may only apply it for constants that are not powers of 2 when explicitly allowed (trade-off between precision/accuracy and spedd, since a floating point division has much higher latency than a multiplication): 
+-LLVM flag for it is arcp on fdiv, clang sets it with --ffast-math, and mlir fastmath<arcp>, our pipeline sets no flag so divf stays intact.
+
+Exception: for a power of two, 1/c is exact, so both forms give the same single rounding.
 
 ## Sources
 
