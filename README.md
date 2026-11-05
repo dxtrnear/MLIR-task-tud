@@ -135,6 +135,7 @@ Note: C code is compiled with `-ffp-contract=off`. Apple clang contracts `a*b + 
 │   └── StencilLowering.cpp   --stencil-apply-to-linalg and --stencil-sweep-to-scf
 ├── standalone-opt/           the opt-like driver (registers the dialect and the passes)
 └── test/Standalone/          lit round-trip test of the dialect
+├── notes.md                  personal working notes kept during development (unedited)
 ```
 
 **Naming.** The starter's file names, CMake targets, the `standalone-opt` tool and the C++ namespace (`mlir::standalone`) are kept; only the dialect name was changed to `stencil`, so the IR reads `stencil.apply` / `stencil.sweep` as in the sheet.

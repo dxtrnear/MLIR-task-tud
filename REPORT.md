@@ -43,9 +43,8 @@ cmake -G Ninja -S "$REPO_DIR" -B "$REPO_DIR/build" \
   -DMLIR_DIR="$LLVM_PREFIX/lib/cmake/mlir" \
   -DLLVM_EXTERNAL_LIT="$LLVM_BUILD/bin/llvm-lit"
 ninja -C "$REPO_DIR/build" check-standalone-opt
-```
 Result:
-
+```
 -- Precompiled headers enabled.
 -- Configuring done (1.7s)
 -- Generating done (0.2s)
@@ -57,6 +56,8 @@ Testing Time: 0.47s
 
 Total Discovered Tests: 1
   Passed: 1 (100.00%)
+```
+
 ---
 
 ## Task 2 — Matrix multiplication in Linalg
@@ -183,7 +184,7 @@ module {
 
 ---
 
-## Task 3 — Lower to loops
+## Task 3 - Lower to loops
 
 ```bash
 make task3
@@ -235,7 +236,7 @@ Observations:
 
 ---
 
-## Task 4 — Loop interchange
+## Task 4 - Loop interchange
 
 ### Why loop order matters
 
@@ -343,7 +344,7 @@ Same terms, same order
 
 ---
 
-## Task 5 — Lower to LLVM, link and run
+## Task 5 - Lower to LLVM, link and run
 
 ### Q8. 
 
@@ -471,7 +472,6 @@ Descriptor fields (from [TargetLLVMIR](https://mlir.llvm.org/docs/TargetLLVMIR/)
 
 
 The interchanged kernel is about 5× faster with identical arithmetic: the only difference is the memory access pattern of the innermost loop (B walked down columns vs. rows of B and C streamed contiguously). Since llc runs no vectorization, this speed-up comes from memory behaviour alone
----
 
 # Part 2 
 ---
@@ -530,7 +530,7 @@ seidel A : 0 / 1000000 mismatches
 | opt -O2 then llc | 0.21 / 0.117 | 1.40 / 1.40 |
 | opt -O2 -mtriple=arm64-apple-macosx then llc | 0.112 / 0.116 | 1.40 / 1.40 |
 
-(The default pipeline is slower only because llc is the back end alone, LLVM's middle-end optimisations never runs unless target is known (mlir-translate doesn't emit target triple so uses a generic cost model))
+(The default pipeline is slower because llc is only the back end: LLVM’s middle-end optimisations never run. When we ran them with opt -O2, Seidel caught up, but Jacobi only did once the target was given with -mtriple: mlir-translate emits no target triple, so opt used a generic cost model and did not vectorise usefully.)
 
 ## Q12. Can division by a constant be replaced by multiplication by its reciprocal?
  
