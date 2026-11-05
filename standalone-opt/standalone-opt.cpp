@@ -21,7 +21,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "Standalone/StencilPasses.h" // include the header for the stencil passes
-#include "mlir/Dialect/SCF/IR/SCF.h" // build fails if not declared here even tho it is included in StandaloneDialect.h ?
+#include "mlir/Dialect/SCF/IR/SCF.h" 
 #include "Standalone/StandaloneDialect.h"
 #include "Standalone/StandaloneOpsDialect.cpp.inc"
 
